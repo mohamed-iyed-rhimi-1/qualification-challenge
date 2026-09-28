@@ -1,0 +1,142 @@
+openapi: 3.0.3
+info:
+  title: Tasks API
+  version: 1.0.0
+  description: |
+    Simple REST API for a task management system (FAD Qualification Challenge — Backend).
+
+    Every error response has the same shape: `{ status, error, details? }`.
+servers:
+  - url: http://localhost:3000
+tags:
+  - name: Tasks
+paths:
+  /tasks:
+    get:
+      tags: [Tasks]
+      summary: List all tasks
+      responses:
+        "200":
+          description: All tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Task" }
+    post:
+      tags: [Tasks]
+      summary: Create a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateTaskInput" }
+            example: { title: Buy groceries, description: Milk, eggs and bread }
+      responses:
+        "201":
+          description: Task created
+          headers:
+            Location:
+              description: URL of the created task
+              schema: { type: string, example: /tasks/1 }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+  /tasks/{id}:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      tags: [Tasks]
+      summary: Get a task by id
+      responses:
+        "200":
+          description: The task
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Tasks]
+      summary: Replace a task
+      description: Full replacement — `title`, `description` and `isCompleted` are all required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateTaskInput" }
+            example: { title: Buy groceries, description: Milk, eggs and bread, isCompleted: true }
+      responses:
+        "200":
+          description: Task updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Tasks]
+      summary: Delete a task
+      responses:
+        "204": { description: Task deleted }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+components:
+  parameters:
+    TaskId:
+      name: id
+      in: path
+      required: true
+      description: Positive integer id of the task
+      schema: { type: integer, minimum: 1, example: 1 }
+  schemas:
+    Task:
+      type: object
+      required: [id, title, description, isCompleted]
+      properties:
+        id: { type: integer, example: 1 }
+        title: { type: string, example: Buy groceries }
+        description: { type: string, example: Milk, eggs and bread }
+        isCompleted: { type: boolean, example: false }
+    CreateTaskInput:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 100, description: Trimmed; must not be blank }
+        description: { type: string, maxLength: 500, default: "" }
+        isCompleted: { type: boolean, default: false }
+    UpdateTaskInput:
+      type: object
+      additionalProperties: false
+      required: [title, description, isCompleted]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 100, description: Trimmed; must not be blank }
+        description: { type: string, maxLength: 500 }
+        isCompleted: { type: boolean }
+    Error:
+      type: object
+      required: [status, error]
+      properties:
+        status: { type: integer, example: 400 }
+        error: { type: string, example: Validation failed }
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string, example: title }
+              message: { type: string, example: title must not be empty }
+  responses:
+    BadRequest:
+      description: Invalid input (validation error, malformed JSON or invalid id)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Task not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { status: 404, error: Task with id 42 not found }
